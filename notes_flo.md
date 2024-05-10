@@ -131,3 +131,85 @@ nicht höher als `If-None-Match`, wird Status `304: Not Modified` zurückgegeben
   True
   ```
 - Case Insensitive `.filter(Patient.nachname.ilike(f"%{teil}%"))`
+
+# Vorlesung 4 (10.05)
+
+### Docker Postgres Image Update
+- Neues Postgres Update mit der Version `16.3`
+  - In der Postgres compose.yml die Version abändern `image: postgres:16.3-bookworm`
+  - Docker pull ausführen: 
+  ```shell
+    docker pull postgres:16.3-bookworm
+  ```
+  - Danach Docker Container starten:
+  ```shell
+    docker compose up
+  ```
+  - Je nach Postgres Version muss eventuell Migration ausgeführt werden → Online nachschlagen, 
+  wie die Migration aussieht
+  - ``View a summary of image vulnerabilities and recommendations → docker scout quickview postgres:16.3-bookworm``
+  - ``postgres/data`` löschen falls man kein Bock hat auf Migration
+
+### MKDocs für Anwendungsdokumentation
+- ``mkdocs serve`` in Virtual-Environment für Webserver für Dokumentation mit mkdocs
+  - ``INFO    -  [11:55:43] Watching paths for changes: 'docs', 'mkdocs.yml', 'src\flaskapp'``
+    - ``mkdocs.yml`` ist Zentrale Config Datei für mkdocs
+    - ``docs`` ist unterverzeichnis
+    - Webserver erreichbar über ``http://127.0.0.1:8000/``
+    - ``mkdocs`` generiert unter anderem ER-Diagramm der Datenbank
+### Index in einer DB
+- Ist eine Spalte ``unique`` so wird ein Unique-Index eingefügt
+  - Aufwand geht von ``O(n)`` zu ``O(log n)``
+  - Standard ist B+-Baum (Balancierter Baum)
+  - Index wird auf der Festplatte gespeichert
+  - B-Bäume sind Flacher im Vergleich zu Binärbäumen
+    - Weg von der Wurzel zu den Blättern ist kürzer
+    - Fördert schnelleres Lesen
+  - Mehr als 5 Indizes machen keinen Sinn (Faustregel nach Zimmermann)
+    - Index-Dateien müssen bei SQL-Insert/Update/Delete aktualisiert werden → Das ist teuer
+    - Baum erneut ausbalancieren kann viel Rechenaufwand und Zeit kosten
+    - Joins sind teuer → Fremdschlüsselspalten häufig als Indexe definieren
+  - Dokumentation benutzt PlantUML, aber hatte kein Bock das mitzuschreiben
+
+### Datenbank in Python
+- Unnötige Joins sind blöd (Für die Aussage hat er bisschen länger gebraucht)
+- Um das zu verhindern, benutzen die meisten ORM (Bis auf Hibernate) Lazy-Fetching
+  - Lesen nur aus der anfänglichen Tabelle, für Object mit Fremdeintrag wird leeres Object als
+  Deckplatte eingesetzt
+  - Faustregel ala Zimmermann: kein eager fetching (also keine automatischen JOINs) und lazy-fetching vermeiden
+  - ``joinedload(Patient.adresse)`` macht Eager-Fetching in ``patient_repository``, da es für diesen
+  Use-Case am besten ist.
+- Bei ``POST`` für Patient wird im Header unter ``location`` eine URI zum Eintrag des Patienten zurückgegeben.
+- Body bleibt somit leer, sinnvoll dann Statuscode ``201 - Created`` zurückzugeben
+- Wird bei einem ``PUT`` überschrieben, so wird der Statuscode ``204 - No Contend`` zurück gegeben,
+weil der Client die ID des Patienten schon kennt.
+- Im Header ``etag`` wird Versionsnummer mitgegeben, für Lost-Update
+
+### Logging im Projekt
+
+- Es wird Loguru als Logging-Framework verwendet
+- Allgemein wird hier auch wieder auf Lazy-Logging zurückgegriffen. Es gibt auch hier verschiedene
+Loglevel
+
+### Lost-Update
+- Oracle hat keine Lese-Sperren und Postgres ist Standardmäßig nur mit Schreibsperren konfiguriert.
+- SQLAlchemy übernimmt Update-Funktion für die Versions-Spalte
+- Bei Schreibvorgang wird überprüft, ob Versionsnummer höher als momentan vorhandener Wert in der DB ist
+- Versionsnummer steht im Entity-Object
+- Im Header wird Feld ``if-Match`` gesetzt, mit der gelesenen Versionsnummer mitgeschickt. Stimmt
+diese Version mit der Version in der DB überein, wird Update ausgeführt.
+- Jeder Header-Schlüssel kann mehrfach vorkommen, deshalb ``if-Match`` als Set auslesen, überprüfen
+ob Länge > 1 sollte das der Fall sein, Exception werfen
+  ```python
+    if_match_set: Final = request.if_match.as_set()
+        if len(if_match_set) != 1:
+            return Response(
+                status=HTTPStatus.PRECONDITION_REQUIRED, content_type=APPLICATION_JSON
+            )
+  ```
+  Sollte die Version gleich der DB Version sein, so kann der Eintrag mit ``async def update(...)`` geändert werden.
+  Beim Result muss die Versionsnummer auch um eins erhöht werden, da die aktualisierte Version in der DB erst nach commit verfügbar ist.
+- Status-Code bei nicht Änderung ist ``304 - Not Modified``
+
+
+
