@@ -1,3 +1,38 @@
+# Vorlesung 1
+## docker
+### informationen zu image anzeigen
+image identifiziert über `tag`, zB `postgres:16.2-bookworm`
+- ``docker inspect tag``
+- ``docker sbom tag`` (software bill of materials)
+- ``dive.exe tag``
+    - ermöglicht das tiefe "eintauchen" in die Struktur des image
+    - Darstellung über Schichten & Baumstruktur
+    - drei Sichten, wechseln mit Tab 
+    - Befehle in Leiste unten mit Strg
+    
+### image starten
+- `docker compose`
+- ``compose.yml``/``docker-compose.yaml`` zur Spezifikation von Services
+    - gültige JSON-Datei -> gültige yaml-Datei
+    - yaml ist Obermenge von JSON
+    - Einrückung wichtig (immer um 2)
+    - Baumstruktur
+    - ports-attribut -> Verbindung ports Windows und Linux-Image
+- docker compose exec 'servicename' 'befehl'
+    - führe Befehl in image aus
+    - zb docker compose exec db bash 
+
+# Vorlesung 2
+- Primärschlüssel müssen eindeutig sein und sollten sich nicht ändern -> zb email ungeeignet
+- komplexere Datemsätze als Attribut abbilden:
+    - json Objekt zur Simulation von String-Arrays
+    - varchar
+    - zweite Tabelle mit 1:n oder m:n Beziehung via JOINs
+- Startreihenfolge `.\.venv\Scripts\Activate.ps1`, ` python -m flaskapp`, `docker compose up`
+- ``patient_get_controller.py``
+    - @ctrl.get definiert die Route
+    - @roles_allowed definiert erlaubte Rollen -> sonst Unauthorized oder Forbidden
+
 # Vorlesung 10.05.
 ## Datenbankupdate
 - postgres-version in `.extras\compose\db\postgres\compose.yml` auf **16.3** aktualisiert, anschließend `docker pull postgres:16.3-bookworm`
