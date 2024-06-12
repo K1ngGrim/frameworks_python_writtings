@@ -151,3 +151,90 @@ image identifiziert über `tag`, zB `postgres:16.2-bookworm`
 
 
 bedingtes get -> if-none-match ; put -> if-match ; \+ etag im response header ; \+ location im response header 
+
+# Vorlesung 31.05.
+## Klausurinfos:
+- kein Code, nur Verständnis
+- Checkliste im Ilias
+### REST
+- Flask Blueprints
+- was ist bei Schreiboperationen zu berücksichtigen
+### HTTP-Methoden & Statuscodes
+- insbes ein bestimtter angesprochener 3er code
+### Schichtenarchitektur
+- mittlere Schicht nicht im Detail behandelt
+- zuerst validideren, erst dann bearbeiten
+- Datenbankzugriff ausführlich!
+    - wie weit liest man
+    - inwieweit/wann führt man JOINs aus
+        - keine "vorauseilenden" JOINs
+        - SQLAlchemy default -> keine automatischen Joins
+        - kein eager fetching und lazy fetching vermeiden (im Sinne von minimieren)
+        - n+1 Problem -> 1 Datensatz wird gelesen und dann schritt für Schritt daten nachgeladen
+        - Versionsspalte verwenden
+        => REST-Schnittstelle kann Versionszähler verwenden -> ifNotMatch -> wenn Server sieht, dass es keine Änderung gab, wird NotModified zurückgegeben 
+... -> Ben, Ioannis
+## Vorlesung
+- bei sehr **großen** Systemen und **vielen** Clients kann REST zu Problemen führen
+    1. Clients fordern z.T. Daten an, die sie gar nicht unbedingt alle brauchen -> "Overfetching"
+    2. Clients fordern Daten, bekommen zu wenig Daten und müssen dann weiteren Request abschicken, ggf an weiteren Endpoint -> "Underfetching", "Waterfall-Requests" weil Kettenreaktion, Requests plätschern beim Server ein
+- Problem: REST ist "server-driven", Server gibt System vor und Clients müssen sich danach richten "take it, or leave it"
+- viele verschiedene Endgerätetypen verschiedener (Bildschirm-)Größe -> unterschiedlich viel Inhalt anzeigbar
+### GraphQL
+- client-driven -> löst/minimiert Over- und Underfetching
+- alternativ auch als Proxy vor einer REST-Schnittstelle nutzbar (normalerweise eigenständig)
+- graphQL hat nur einen Endpoint, egal ob wir lesen oder schreiben
+    - wird **immer** mit POST angesprochen
+    - statuscode **immer** 200
+#### Strawberry
+- schema first
+- code first
+#### Schema
+- neutrale Beschreibungssprache für Schnittstelle
+- schema.graphql wird von strawberry generiert
+- losgelöst von http
+    - queries und mutations statt expliziter Erwähnung von http-statuscodes und rest-methoden
+    - statische Endpoints nicht mehr notwendig
+    - Statuscodes, Header,... uninteressant
+- Queries
+    - ``!`` hinter Objekt => nicht nullable
+    - Trennung zwischen Kunde und KundeInput -> zwei verschiedene Datentypen
+        - Typen die zurückzuliefernde Daten definieren
+        - Typen die Eingabedaten definieren
+- ``schema.py``
+    - definiere Funktionen hinter queries
+
+# Vorlesung 07.06.2024
+## Erstellung Docker-Image -> Dockerfile
+- cloud native buildpacks nur bei java + spring-boot sinnvoll => deswegen hier mit dockerfile
+- ``flaskapp\Dockerfile``
+- Z.36 ändern zu `ARG PYTHON_VERSION=3.12.3`
+- ``FROM ...`` definiert ausgangs-image (parent image)
+    - baue auf bestehendem image auf
+    - in diesem Fall: ``python:${PYTHON_VERSION}-slim-bookworm``
+        - Debian (Bookworm) + Python
+        - slim = nur das notwendigste -> kleineres image
+    - Quelle für images: https://hub.docker.com
+- Docker nutzt wsl
+- Dockerfile baut **zwei images** -> siehe Z. 41, Z.107
+    - jedes ``FROM`` initiiert neue "Stage"
+    - erste Stage = Builder
+        - baue Image mit Software die für die Konfiguration benötigt wird
+    - zweite Stage = endgültiger Zusammenbau 
+        - entferne Software/Libraries, die zur Laufzeit nicht mehr notwendig sind
+        - erstelle und wechsle zu non-root user
+        - kopiere notwendige verzeichnisse aus dem ersten zum zweiten image
+        - letzter Schritt: **führe bei containerstart flaskapp aus**
+- `WORKDIR` = working directory für docker commands
+- `RUN`-Befehl
+    - ``RUN <<EOF`` = führe alle Linux Befehle bis EOF aus
+    - Konfiguration der Linux-Installation möglich 
+        - aktualisiere Abhängigkeiten (apt update und upgrade)
+        - Python venv
+
+## nach der Pause
+- in `C:\Users\spams\Documents\Studium\h-ka\10_(SS24)\Python-Frameworks\flaskapp\.extras\compose\compose.yml` Zeile 41 image mit dem neuen Image ersetzen -> name wie vor der Pause von uns definiert
+- ``cd \flaskapp\.extras\compose``;``docker compose up``
+- in der `compose.yml` stehen Pfade 
+    - zu Zertifikaten -> damit Zertifikat nicht direkt im (ggf öffentlichen) Image liegt
+    - zu Konfigdateien -> ``flaskapp.toml``
